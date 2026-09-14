@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KE Clean Bus Dashboard — Priority Feeders</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ke-red:#E4002B; --ke-mag:#B5179E; --ke-grad:linear-gradient(120deg,#E4002B 0%,#C30F6C 55%,#B5179E 100%);
+    --ke-teal:#00A9CE; --ke-dark:#201826;
+    --bg:#f4f5f8; --panel:#ffffff; --panel2:#f8f9fc; --line:#e7e9ef; --line2:#eef0f4;
+    --ink:#1b2130; --mut:#6b7280; --dim:#9aa2af;
+    --green:#1a9a5a; --green-l:#e7f7ee; --amber:#e08a00; --amber-l:#fdf3dd;
+    --plat:#3b4252; --gold:#c79100; --silver:#8a9099;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    --sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  header.top{background:#fff;border-bottom:1px solid var(--line)}
+  .stripe{height:4px;background:var(--ke-grad)}
+  .topbar{padding:16px 30px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .kemark{display:inline-flex;align-items:center;justify-content:center;width:52px;height:42px;background:var(--ke-grad);color:#fff;font-weight:800;font-size:20px;border-radius:11px;letter-spacing:.5px;box-shadow:0 4px 12px rgba(195,15,108,.35)}
+  .topbar .t1{font-size:18px;font-weight:800;letter-spacing:-.2px}
+  .topbar .t2{font-size:11.5px;color:var(--mut);font-family:var(--mono);margin-top:2px}
+  .topbar .right{margin-left:auto;text-align:right;font-size:11px;color:var(--mut);font-family:var(--mono);line-height:1.6}
+  .pbanner{background:var(--ke-grad);color:#fff;padding:13px 30px;display:flex;gap:30px;flex-wrap:wrap;align-items:center}
+  .pbanner .pb{display:flex;align-items:baseline;gap:8px}
+  .pbanner .pbv{font-family:var(--mono);font-size:22px;font-weight:700}
+  .pbanner .pbl{font-size:11px;opacity:.9;text-transform:uppercase;letter-spacing:.7px}
+  .pbanner .tagline{margin-left:auto;font-size:12px;opacity:.92;font-weight:500}
+  .wrap{max-width:1340px;margin:0 auto;padding:22px 30px 90px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:18px;box-shadow:0 2px 10px rgba(28,33,48,.04)}
+  .panel h2{font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--ke-mag);margin:0 0 14px;font-weight:700;border-bottom:1px solid var(--line2);padding-bottom:10px}
+  .panel h2 .tag{float:right;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:11px;color:var(--mut);font-weight:400}
+  .inrow{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  #drop{flex:1;min-width:260px;border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:.15s;background:var(--panel2)}
+  #drop:hover,#drop.hot{border-color:var(--ke-mag);background:#fdf2f8}
+  #drop .big{font-size:14.5px;font-weight:600} #drop .big b{color:var(--ke-red)}
+  #drop .small{color:var(--mut);font-size:12px;font-family:var(--mono);margin-top:4px}
+  input[type=file]{display:none}
+  button.run{background:var(--ke-grad);color:#fff;border:none;font-weight:700;font-size:15px;padding:13px 32px;border-radius:11px;cursor:pointer;box-shadow:0 4px 12px rgba(195,15,108,.3);font-family:var(--sans)}
+  button.run:hover{filter:brightness(1.05)} button.run:disabled{opacity:.4;cursor:default;box-shadow:none}
+  button.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);padding:9px 16px;border-radius:9px;cursor:pointer;font-size:13px;font-family:var(--sans);font-weight:600}
+  button.ghost:hover{border-color:var(--ke-mag);color:var(--ke-mag)}
+  #status{font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+  .cols{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .chip{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:6px;border:1px solid var(--line);background:var(--panel2)}
+  .chip.ok{color:var(--green);border-color:#bfe3cc;background:var(--green-l)}
+  .chip.opt{color:var(--amber);border-color:#f0dcae;background:var(--amber-l)}
+  .chip.off{color:var(--dim);border-color:var(--line);text-decoration:line-through}
+  .miniline{font-size:12px;color:var(--mut);margin-top:10px;font-family:var(--mono)}
+  .miniline b{color:var(--ink)} .warn{color:var(--ke-red)}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px}
+  @media(max-width:880px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{position:relative;background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px;overflow:hidden}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ke-grad)}
+  .kpi .v{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--ke-dark)}
+  .kpi .v.red{color:var(--ke-red)} .kpi .v.green{color:var(--green)} .kpi .v.mag{color:var(--ke-mag)}
+  .kpi .l{color:var(--mut);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-top:5px;font-weight:600}
+  .filterbar{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .fgrp{display:flex;flex-direction:column;gap:3px}
+  .fgrp label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);font-weight:700;padding-left:2px}
+  .dd{position:relative}
+  .ddbtn,.fin{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 14px;font-size:13px;cursor:pointer;color:var(--ink);font-family:var(--sans);min-width:160px;text-align:left;font-weight:500}
+  .ddbtn:hover{border-color:var(--ke-mag)}
+  .fin{cursor:text;min-width:190px}
+  .fin:focus{outline:none;border-color:var(--ke-mag)}
+  .ddpanel{position:absolute;top:40px;left:0;z-index:20;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 8px 26px rgba(28,33,48,.16);padding:7px;max-height:330px;overflow:auto;min-width:250px}
+  .ddrow{display:flex;align-items:center;gap:9px;padding:6px 10px;font-size:12.5px;border-radius:7px;cursor:pointer}
+  .ddrow:hover{background:var(--panel2)} .ddrow.ddall{border-bottom:1px solid var(--line2);font-weight:700;margin-bottom:4px}
+  .ddrow input{accent-color:var(--ke-red)}
+  .clearf{align-self:flex-end;font-size:11px;color:var(--ke-mag);cursor:pointer;font-weight:600;padding:9px 4px}
+  .clearf:hover{text-decoration:underline}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2)}
+  thead th{color:#fff;background:var(--ke-dark);font-size:10px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;font-weight:700}
+  thead th:first-child{border-top-left-radius:0}
+  thead th:hover{background:#352a3d}
+  td{font-family:var(--mono);font-size:12px} td.name{font-family:var(--sans);font-weight:700}
+  tr.gridrow:hover{background:#fdf2f8}
+  .pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;font-weight:600}
+  .pill.g{background:var(--green-l);color:var(--green)} .pill.r{background:#fde7ec;color:var(--ke-red)} .pill.y{background:var(--amber-l);color:var(--amber)} .pill.m{background:#fbe9f4;color:var(--ke-mag)}
+  .cust b{font-weight:700}
+  .cP{color:var(--plat)} .cG{color:var(--gold)} .cS{color:var(--silver)}
+  .delta{font-size:11px} .delta.up{color:var(--green)} .delta.dn{color:var(--ke-red)} .delta.flat{color:var(--dim)}
+  .expand{cursor:pointer;color:var(--ke-mag);font-weight:700}
+  tr.detail td{background:var(--panel2);padding:0}
+  .detail-inner{padding:14px 18px}
+  .detail-inner h4{margin:14px 0 6px;font-size:10px;color:var(--ke-mag);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+  .detail-inner h4:first-child{margin-top:2px}
+  .swaptbl thead th{background:#6a5f72}
+  .arrow{color:var(--ke-mag)} .from{color:#2f6fed} .to{color:var(--green)} .prio{color:var(--ke-mag);font-weight:700}
+  .ld{color:var(--ke-teal);font-weight:700}
+  .muted{color:var(--mut)} .small{font-size:12px} .hide{display:none}
+  .stack{display:flex;height:25px;border-radius:7px;overflow:hidden;border:1px solid var(--line);margin:3px 0 2px}
+  .seg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10.5px;color:#fff;white-space:nowrap;overflow:hidden;border-right:1px solid rgba(255,255,255,.3)}
+  .seg.clean{background:var(--ke-grad)} .seg:not(.clean){background:#9aa2af}
+  .seg:nth-child(2):not(.clean){background:#b3b9c2} .seg:nth-child(3):not(.clean){background:#828a95} .seg:nth-child(4):not(.clean){background:#c6cbd2} .seg:nth-child(5):not(.clean){background:#727a86}
+  .barwrap{display:inline-block;width:78px;height:9px;background:#edeef2;border-radius:5px;overflow:hidden;vertical-align:middle;margin-right:6px;border:1px solid var(--line)}
+  .bar{height:100%;background:var(--green)} .bar.warn{background:var(--amber)} .bar.over{background:var(--ke-red)} .bar.near{background:var(--ke-teal)}
+  footer{color:var(--dim);font-size:11px;text-align:center;padding:8px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="stripe"></div>
+  <div class="topbar">
+    <span class="kemark">KE</span>
+    <div><div class="t1">Clean Bus Dashboard — Priority Feeders</div>
+      <div class="t2">11 kV Reassignment · Network Planning &amp; Engineering</div></div>
+    <div class="right">Best swap proposal per grid · loading packed near 93 %<br>Priority faults −80 % (maintenance plan)</div>
+  </div>
+  <div class="pbanner">
+    <div class="pb"><span class="pbv" id="pbCount">511</span><span class="pbl">priority feeders</span></div>
+    <div class="pb"><span class="pbv" id="pbGrids">30</span><span class="pbl">grids in scope</span></div>
+    <div class="pb"><span class="pbv">−80%</span><span class="pbl">faults after maintenance</span></div>
+    <span class="tagline">Industrial &amp; Strategic feeders prioritised onto each grid's clean bus</span>
+  </div>
+</header>
+<div class="wrap">
+  <div class="panel">
+    <h2>Input <span class="tag">feeders + PTR loading · 2-sheet .xlsx</span></h2>
+    <div class="inrow">
+      <div id="drop"><div class="big">Drop the <b>Mastersheet</b>, or click to browse</div>
+        <div class="small">Sheet 1 = feeders · Sheet 2 = PTR loading</div></div>
+      <input type="file" id="file" accept=".xlsx,.xls">
+      <button class="run" id="runBtn" disabled>Run proposal</button>
+      <span id="status"></span>
+    </div>
+    <div id="detected" class="hide"><div class="cols" id="chips"></div><div id="loadnote"></div></div>
+  </div>
+  <div id="results"></div>
+</div>
+<footer>K-Electric · Network Planning &amp; Engineering · priority list embedded (511)</footer>
+
+<script>
+"use strict";
+const PRIORITY=new Set([34,36,38,48,49,52,54,57,151,152,154,155,156,157,158,160,163,164,165,166,167,168,188,189,191,194,213,214,215,221,260,262,263,264,385,389,390,391,394,395,421,424,426,429,432,433,435,437,438,439,441,445,452,454,455,456,457,458,461,462,465,466,468,469,474,475,476,478,479,480,481,509,512,515,517,519,527,528,533,538,603,604,605,609,611,612,615,617,618,621,646,647,648,651,653,704,709,711,713,714,716,717,718,720,721,724,725,726,727,728,729,730,731,734,772,773,777,778,780,781,784,785,786,787,789,790,792,797,798,799,800,801,806,807,808,809,810,811,814,815,816,817,819,820,821,822,823,824,826,827,828,830,831,832,833,834,835,836,837,838,839,840,887,891,898,1151,1196,1237,1254,1281,1284,1285,1316,1320,1331,1348,1349,1570,2005,2032,2064,2079,2083,2106,2110,2127,2137,2143,2146,2148,2178,2179,2184,2192,2196,2197,3001,3002,3005,3006,3007,3008,3027,3030,3037,3043,3046,3047,3049,3050,3051,3054,3078,3079,3089,3090,3092,3093,3094,3095,3096,3097,3098,3099,3106,3109,3112,3126,3133,3137,3141,3147,3149,3154,3155,3159,3162,3164,3165,3166,3167,3170,3172,3175,3180,3188,3194,3196,3212,3229,3230,3233,3234,3236,3239,3240,3241,3243,3249,3250,3251,3252,3257,3259,3260,3264,3265,3266,3267,3278,3279,3281,3282,3301,3305,3311,3314,3320,3323,3325,3329,3330,3350,3353,3354,3355,3356,3363,3375,3382,3389,3404,3418,3420,3444,3448,3449,3450,3451,3453,3454,3455,3456,3458,3462,3463,3479,3480,3483,3497,3498,3499,3511,3545,3578,3579,3581,3588,3592,3594,3595,3597,3599,3604,3607,3610,3619,3624,3683,3692,3694,3702,3705,3726,3737,3738,3744,3750,3751,3763,3764,3765,3766,3767,3768,3769,3811,3812,3834,3835,3839,3840,3841,3842,3843,3844,3851,3855,3861,3862,3863,3864,3866,3867,3868,3872,3874,3882,3887,3907,3911,3913,3914,3921,3931,3951,3953,3962,3982,3983,3984,3985,3991,4007,4009,4014,4015,4021,4023,4024,4025,4026,4027,4028,4036,4041,4042,4066,4067,4068,4071,4083,4091,4092,4112,4113,4117,4121,4122,4123,4124,4125,4126,4141,4142,4145,4146,4148,4149,4150,4161,4162,4163,4164,4165,4166,4171,4182,4183,4191,4201,4205,4206,4207,4211,4212,4221,4222,4224,4225,4226,4241,4242,4252,4263,4264,4271,4273,4282,4283,4284,4287,4288,4289,4290,4292,4293,4295,4296,4301,4302,4303,4304,4305,4306,4307,4308,4309,4310,4311,4312,4321,4341,4348,4352,4355,4357,4359,4360,4361,4371,4372,4373,4374,4379,4382,4391,4392,4394,4395,4396,4397,4398,4400,4401,4411,4415,4419,4420,4423,4427,4431,4462,4464,4481,4511,4521,4525,4528,4541,4635]);
+const W={priority:60,plat:100,gold:45,silver:18,goodLoss:15,trips:25,cable:30,busbar:25,mcLen:15};
+const FAULT_FACTOR=0.20, MIN_GAIN=0.5, MAX_SWAPS=500, LOAD_LIMIT=0.93;
+const BAD_LOSS=new Set(['ML','VHL','HL']), GOOD_LOSS=new Set(['IND','INDUSTRIAL','LL']);
+const norm=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const normGrid=s=>String(s==null?'':s).trim().replace(/\s+/g,' ').toUpperCase();
+function findCol(headers,cands){const H=headers.map(norm);
+  for(const c of cands){const i=H.indexOf(norm(c));if(i>=0)return i;}
+  for(let i=0;i<H.length;i++)for(const c of cands){if(H[i].includes(norm(c)))return i;}return -1;}
+let FEEDERS=[],BUSCAP={},CANON={},COLMAP={},OPT=null;
+
+const drop=document.getElementById('drop'),fileIn=document.getElementById('file');
+drop.onclick=()=>fileIn.click();
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])handleFile(ev.dataTransfer.files[0]);});
+fileIn.onchange=()=>{if(fileIn.files[0])handleFile(fileIn.files[0]);};
+function handleFile(f){const fr=new FileReader();
+  fr.onload=e=>{try{parseWorkbook(new Uint8Array(e.target.result));}catch(err){showLoadNote('Could not read file: '+err.message,true);console.error(err);}};
+  fr.readAsArrayBuffer(f);}
+function pickSheet(wb,mustHave){for(const n of wb.SheetNames){const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,blankrows:false});
+  if(!rows.length)continue;const H=rows[0].map(norm);if(mustHave.every(m=>H.some(h=>h.includes(norm(m)))))return{name:n,rows};}return null;}
+
+function parseWorkbook(buf){
+  const wb=XLSX.read(buf,{type:'array'});
+  const fs=pickSheet(wb,['grid','gridandptr','peakload']);
+  if(!fs){showLoadNote('No feeder sheet found.',true);return;}
+  const cs=pickSheet(wb,['gridandptr','capacity'])||pickSheet(wb,['gridstation','trafo']);
+  const H=fs.rows[0];
+  const C={id:findCol(H,['Feeder ID']),grid:findCol(H,['GRID']),bus:findCol(H,['Grid and PTR']),
+    trafo:findCol(H,['Trafo. No.','Trafo No']),rating:findCol(H,['Power Trafo Rating']),
+    name:findCol(H,['Feeder name']),amp:findCol(H,['Peak Load (Amp)','Peak Load']),
+    plat:findCol(H,['Platinum']),gold:findCol(H,['Gold']),silver:findCol(H,['Silver']),
+    trips:findCol(H,['Total Trips (Faults)','Total Trips']),
+    cable:findCol(H,['HT Cable Faults','Cable Faults']),busbar:findCol(H,['S/S Busbar Fault','Busbar Fault']),
+    mc:findCol(H,['MC Length (m)','Main Cable Length']),
+    loss:findCol(H,['Loss Category','Loss Cat','Loss Type','Loss','Category'])};
+  COLMAP=C;
+  const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0;};
+  const flag=v=>{if(v==null||v==='')return 0;const s=String(v).toLowerCase();if(s==='0'||s==='no'||s==='false')return 0;return 1;};
+  const trafoFrom=r=>{if(C.trafo>=0&&r[C.trafo]!=null&&r[C.trafo]!=='')return String(r[C.trafo]).trim();
+    const b=String(r[C.bus]||'');const m=b.match(/:?\s*(\d+)\s*$/);return m?m[1]:'1';};
+  const spell={};for(let i=1;i<fs.rows.length;i++){const r=fs.rows[i];if(!r||r[C.grid]==null)continue;
+    const k=normGrid(r[C.grid]),raw=String(r[C.grid]).trim();(spell[k]=spell[k]||{})[raw]=(spell[k][raw]||0)+1;}
+  CANON={};for(const k in spell)CANON[k]=Object.entries(spell[k]).sort((a,b)=>b[1]-a[1])[0][0];
+  FEEDERS=[];
+  for(let i=1;i<fs.rows.length;i++){
+    const r=fs.rows[i];if(!r||r[C.grid]==null||r[C.bus]==null)continue;
+    const gk=normGrid(r[C.grid]);const tno=trafoFrom(r);const busId=gk+'#'+tno;
+    const idNum=parseInt(r[C.id]);const isPri=PRIORITY.has(idNum);
+    const lossRaw=C.loss>=0?String(r[C.loss]||'').toUpperCase().replace(/[^A-Z]/g,''):'';
+    const trips=C.trips>=0?num(r[C.trips]):0,cable=C.cable>=0?num(r[C.cable]):0,busbar=C.busbar>=0?num(r[C.busbar]):0;
+    FEEDERS.push({row:r,idx:FEEDERS.length,id:r[C.id],gkey:gk,gridLabel:CANON[gk],trafo:tno,
+      bus0:busId,busLabel:CANON[gk]+':'+tno,name:r[C.name]||'',amp:num(r[C.amp]),
+      plat:C.plat>=0?flag(r[C.plat]):0,gold:C.gold>=0?flag(r[C.gold]):0,silver:C.silver>=0?flag(r[C.silver]):0,
+      trips:isPri?trips*FAULT_FACTOR:trips,cable:isPri?cable*FAULT_FACTOR:cable,busbar:isPri?busbar*FAULT_FACTOR:busbar,
+      mc:C.mc>=0?num(r[C.mc]):0,isPriority:isPri,lossCat:lossRaw,badLoss:BAD_LOSS.has(lossRaw),goodLoss:GOOD_LOSS.has(lossRaw),bus:null});
+  }
+  // provided PTR ampacity (taken as-is); 93% capacity = ampacity*0.93
+  BUSCAP={};const capByGrid={};
+  if(cs){const HH=cs.rows[0];
+    const ci={grid:findCol(HH,['Grid Station','Grid']),trafo:findCol(HH,['Trafo. No.','Trafo No']),bus:findCol(HH,['Grid and PTR']),
+      prov:findCol(HH,['Provided Loading','PTR Ampacity','Ampacity','Rated Ampacity','Loading (Amp)','Loading (A)','Rated Loading','Rated Current','Power Trafo Capacity (93% Current)','Capacity (Amp)','Capacity (A)','Loading','Ampere','Current'])};
+    for(let i=1;i<cs.rows.length;i++){const r=cs.rows[i];if(!r)continue;let gk,tno;
+      if(ci.grid>=0&&r[ci.grid]!=null&&String(r[ci.grid]).trim()!==''){gk=normGrid(r[ci.grid]);tno=ci.trafo>=0&&r[ci.trafo]!=null?String(r[ci.trafo]).trim():'1';}
+      else if(ci.bus>=0&&r[ci.bus]!=null){const b=String(r[ci.bus]);const m=b.match(/^(.*?):?\s*(\d+)\s*$/);gk=normGrid(m?m[1]:b);tno=m?m[2]:'1';}
+      else continue;
+      const prov=ci.prov>=0?parseFloat(r[ci.prov]):NaN;
+      if(isFinite(prov)){BUSCAP[gk+'#'+tno]={provided:prov,limit:prov*LOAD_LIMIT};(capByGrid[gk]=capByGrid[gk]||[]).push(prov);}}}
+  const seen={};
+  FEEDERS.forEach(f=>{if(BUSCAP[f.bus0]&&BUSCAP[f.bus0].limit)return;if(seen[f.bus0])return;seen[f.bus0]=1;
+    const gv=capByGrid[f.gkey];
+    if(gv&&gv.length){const cnt={};gv.forEach(v=>cnt[v]=(cnt[v]||0)+1);const prov=+Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];
+      BUSCAP[f.bus0]={provided:prov,limit:prov*LOAD_LIMIT,_gridfb:true};return;}
+    const m=String(f.row[COLMAP.rating]||'').match(/(\d+(?:\.\d+)?)/g);let mva=m?Math.max(...m.map(Number).filter(x=>x<200)):null;
+    const rated=mva?mva*1e6/(Math.sqrt(3)*11000):null;
+    BUSCAP[f.bus0]={provided:rated?Math.round(rated):null,limit:rated?rated*LOAD_LIMIT:null,_fb:true};});
+  renderDetected(cs);document.getElementById('runBtn').disabled=false;
+}
+function renderDetected(cs){
+  const C=COLMAP,chips=document.getElementById('chips');
+  const core=[['Grid','grid'],['Grid+PTR','bus'],['Peak Load','amp'],['Platinum','plat'],['Gold','gold'],['Silver','silver'],['Trips','trips'],['Cable flt','cable'],['Busbar','busbar'],['MC Len','mc']];
+  let html='';core.forEach(([lbl,k])=>{const ok=C[k]>=0;html+=`<span class="chip ${ok?'ok':'off'}">${ok?'✓':'✕'} ${lbl}</span>`;});
+  html+=`<span class="chip ${C.loss>=0?'ok':'opt'}">${C.loss>=0?'✓':'—'} Loss Cat</span>`;
+  const provOk=Object.values(BUSCAP).some(c=>c.provided&&!c._fb);
+  html+=`<span class="chip ${provOk?'ok':'opt'}">${provOk?'✓':'~'} Provided loading</span>`;
+  chips.innerHTML=html;
+  const pri=FEEDERS.filter(f=>f.isPriority),priGrids=new Set(pri.map(f=>f.gkey));
+  document.getElementById('pbCount').textContent=pri.length;document.getElementById('pbGrids').textContent=priGrids.size;
+  const variants=Object.keys(CANON).length;
+  const noCap=new Set(FEEDERS.filter(f=>BUSCAP[f.bus0]&&BUSCAP[f.bus0]._fb).map(f=>f.bus0)).size;
+  let m=`<div class="miniline"><b>${FEEDERS.length}</b> feeders · <b>${pri.length}/511</b> priority in <b>${priGrids.size}</b> grids · ${variants} grids after name-merge · loading kept ≤ 93% of provided`;
+  if(C.loss<0)m+=` · <span class="warn">no Loss Category column</span>`;
+  if(noCap)m+=` · <span class="warn">${noCap} PTR ampacity estimated (not matched in sheet 2)</span>`;
+  m+=`</div>`;document.getElementById('loadnote').innerHTML=m;document.getElementById('detected').classList.remove('hide');
+}
+function showLoadNote(msg,err){document.getElementById('detected').classList.remove('hide');
+  document.getElementById('loadnote').innerHTML=`<div class="miniline ${err?'warn':''}">${msg}</div>`;}
+
+/* optimizer */
+function ampOf(b){const c=BUSCAP[b];return c&&c.provided?c.provided:null;}
+function targetOf(b){const a=ampOf(b);return a?a*LOAD_LIMIT:Infinity;}
+function loadsOf(fs){const L={};fs.forEach(f=>{L[f.bus]=(L[f.bus]||0)+f.amp;});return L;}
+function optimize(){
+  const grids={};FEEDERS.forEach(f=>{f.bus=f.bus0;(grids[f.gkey]=grids[f.gkey]||[]).push(f);});
+  const scope=Object.keys(grids).filter(g=>grids[g].some(f=>f.isPriority)).sort((a,b)=>CANON[a]<CANON[b]?-1:1);
+  function score(f,mT,mM,mC,mB){if(f.badLoss)return -1e9;
+    const nT=mT?f.trips/mT:0,nM=mM?f.mc/mM:0,nC=mC?f.cable/mC:0,nB=mB?f.busbar/mB:0;
+    return W.priority*(f.isPriority?1:0)+W.plat*f.plat+W.gold*f.gold+W.silver*f.silver+W.goodLoss*(f.goodLoss?1:0)
+      -W.trips*nT-W.cable*nC-W.busbar*nB-W.mcLen*nM;}
+  const out={grids:[],processed:0,single:0,scope:scope.length};
+  for(const g of scope){
+    const fs=grids[g];const buses=[...new Set(fs.map(f=>f.bus0))];
+    const mx=k=>Math.max(0,...fs.map(f=>f[k]));const mT=mx('trips'),mM=mx('mc'),mC=mx('cable'),mB=mx('busbar');
+    fs.forEach(f=>{f.sc=score(f,mT,mM,mC,mB);});
+    if(buses.length<2){out.single++;out.grids.push(buildResult(g,fs,fs.map(f=>({...f})),buses,buses[0],[],true));continue;}
+    out.processed++;let best=null;
+    for(const cand of buses){const res=cleanlinessSwaps(g,fs,buses,cand);
+      if(!best||res.score>best.score+1e-6||(Math.abs(res.score-best.score)<=1e-6&&res.swaps.length<best.swaps.length))best=res;}
+    // load-balance phase: pack each PTR toward 93%, preserving clean-bus quality
+    const loadSwaps=balanceLoads(best.fs,buses,best.cleanBus);
+    out.grids.push(buildResult(g,fs,best.fs,buses,best.cleanBus,best.swaps.concat(loadSwaps),false));
+  }
+  out.totSwaps=out.grids.reduce((a,r)=>a+r.swaps.length,0);
+  return out;
+}
+function cleanlinessSwaps(g,fsOrig,buses,cleanBus){
+  const fs=fsOrig.map(f=>({...f}));const L=loadsOf(fs);const swaps=[];
+  for(let s=0;s<MAX_SWAPS;s++){
+    const onClean=fs.filter(f=>f.bus===cleanBus).sort((a,b)=>a.sc-b.sc);
+    const others=fs.filter(f=>f.bus!==cleanBus&&!f.badLoss).sort((a,b)=>b.sc-a.sc);
+    let bestSwap=null;
+    for(const o of onClean){for(const i of others){const gain=i.sc-o.sc;if(gain<=MIN_GAIN)break;
+      const nc=L[cleanBus]-o.amp+i.amp;const d=i.bus;const nd=L[d]-i.amp+o.amp;
+      const okC=nc<=targetOf(cleanBus)+1e-6||nc<=L[cleanBus]+1e-6;
+      const okD=nd<=targetOf(d)+1e-6||nd<=L[d]+1e-6;
+      if(!okC||!okD)continue;
+      if(!bestSwap||gain>bestSwap.gain)bestSwap={o,i,gain,nc,nd,d};break;}}
+    if(!bestSwap)break;
+    const fo=fs.find(x=>x.idx===bestSwap.o.idx),fi=fs.find(x=>x.idx===bestSwap.i.idx);const dBus=fi.bus;
+    fo.bus=dBus;fi.bus=cleanBus;L[cleanBus]=bestSwap.nc;L[dBus]=bestSwap.nd;
+    swaps.push({type:'quality',outName:fo.name,outId:fo.id,outPri:fo.isPriority,outLoss:fo.lossCat,
+      inName:fi.name,inId:fi.id,inPri:fi.isPriority,inLoss:fi.lossCat,fromBus:fi.busLabel,outAmp:fo.amp,inAmp:fi.amp,gain:+bestSwap.gain.toFixed(1)});
+  }
+  return {fs,swaps,cleanBus,score:+fs.filter(f=>f.bus===cleanBus).reduce((a,f)=>a+f.sc,0).toFixed(1)};
+}
+// pack PTR loads toward 93% (water-filling); never exceed; preserve clean-bus cleanliness
+function balanceLoads(fs,buses,cleanBus){
+  const L=loadsOf(fs);const swaps=[];const TOPK=12;
+  const pen=b=>{const t=targetOf(b);if(t===Infinity)return 0;const d=t-L[b];return d>0?(d/t)*(d/t):0;};
+  for(let it=0;it<buses.length*8;it++){
+    let best=null;
+    for(const X of buses)for(const Y of buses){if(X===Y)continue;
+      // move amp from higher-load X to lower-load Y to equalise gap to target
+      if((targetOf(X)-L[X])>=(targetOf(Y)-L[Y]))continue; // X must have smaller gap (more loaded)
+      const fX=fs.filter(f=>f.bus===X).sort((a,b)=>b.amp-a.amp).slice(0,TOPK); // high-amp out of X
+      const fY=fs.filter(f=>f.bus===Y).sort((a,b)=>a.amp-b.amp).slice(0,TOPK); // low-amp out of Y
+      for(const a of fX)for(const b of fY){
+        if(a.amp<=b.amp)continue; // need net amp X->Y
+        if(Y===cleanBus){if(a.badLoss)continue;if(a.sc<b.sc-1e-9)continue;} // entering clean must not reduce score / no bad-loss
+        if(X===cleanBus){if(b.badLoss)continue;if(b.sc<a.sc-1e-9)continue;}
+        const nX=L[X]-a.amp+b.amp,nY=L[Y]-b.amp+a.amp;
+        if(nX>targetOf(X)+1e-6||nY>targetOf(Y)+1e-6)continue;
+        const tX=targetOf(X),tY=targetOf(Y);
+        const p0=pen(X)+pen(Y);
+        const dX=tX-nX,dY=tY-nY;
+        const p1=(tX===Infinity?0:(dX>0?(dX/tX)**2:0))+(tY===Infinity?0:(dY>0?(dY/tY)**2:0));
+        const improve=p0-p1;
+        if(improve>1e-5&&(!best||improve>best.improve))best={a,b,X,Y,nX,nY,improve};
+      }
+    }
+    if(!best)break;
+    const fa=fs.find(x=>x.idx===best.a.idx),fb=fs.find(x=>x.idx===best.b.idx);
+    fa.bus=best.Y;fb.bus=best.X;L[best.X]=best.nX;L[best.Y]=best.nY;
+    swaps.push({type:'load',outName:fb.name,outId:fb.id,outPri:fb.isPriority,outLoss:fb.lossCat,
+      inName:fa.name,inId:fa.id,inPri:fa.isPriority,inLoss:fa.lossCat,
+      fromBus:fb.busLabel,toBus:fa.busLabel,outAmp:fb.amp,inAmp:fa.amp,
+      pair:CANON[best.X.split('#')[0]]+':'+best.X.split('#')[1]+' ⇄ '+CANON[best.Y.split('#')[0]]+':'+best.Y.split('#')[1]});
+  }
+  return swaps;
+}
+function buildResult(g,fsOrig,fsNew,buses,cleanBus,swaps,single){
+  const total=fsNew.reduce((a,f)=>a+f.trips,0);
+  const lab=b=>{const f=fsNew.find(x=>x.bus0===b)||fsOrig.find(x=>x.bus0===b);return f?f.busLabel:b;};
+  const busInfo=buses.map(b=>{
+    const pre=fsOrig.filter(f=>f.bus0===b).reduce((a,f)=>a+f.trips,0);
+    const post=fsNew.filter(f=>f.bus===b).reduce((a,f)=>a+f.trips,0);
+    const cur=fsNew.filter(f=>f.bus===b);
+    const load=cur.reduce((a,f)=>a+f.amp,0);
+    const cap=BUSCAP[b]||{};const amp=cap.provided||null;const cap93=amp?Math.round(amp*LOAD_LIMIT):null;
+    return {bus:b,label:lab(b),isClean:b===cleanBus,
+      contribPre:total?+(pre/total*100).toFixed(1):0,contribPost:total?+(post/total*100).toFixed(1):0,
+      plat:cur.reduce((a,f)=>a+f.plat,0),gold:cur.reduce((a,f)=>a+f.gold,0),silver:cur.reduce((a,f)=>a+f.silver,0),
+      load:Math.round(load),ampacity:amp,cap93,est:!!(cap._fb||cap._gridfb),
+      loadPct:amp?+(load/amp*100).toFixed(1):null,over:cap93?load>cap93+1e-6:false};
+  });
+  const cP=fsNew.filter(f=>f.bus===cleanBus),cPre=fsOrig.filter(f=>f.bus0===cleanBus);
+  const cnt=(arr,p)=>arr.filter(p).length;
+  const ci=busInfo.find(b=>b.isClean);
+  return {grid:g,gridLabel:CANON[g],cleanBus,cleanLabel:lab(cleanBus),buses,busInfo,swaps,fs:fsNew,single,gridFault:total,
+    priorityPre:cnt(cPre,f=>f.isPriority),priorityPost:cnt(cP,f=>f.isPriority),
+    platPre:cPre.reduce((a,f)=>a+f.plat,0),platPost:cP.reduce((a,f)=>a+f.plat,0),
+    goldPre:cPre.reduce((a,f)=>a+f.gold,0),goldPost:cP.reduce((a,f)=>a+f.gold,0),
+    silverPre:cPre.reduce((a,f)=>a+f.silver,0),silverPost:cP.reduce((a,f)=>a+f.silver,0),
+    faultSharePre:ci?ci.contribPre:0,faultSharePost:ci?ci.contribPost:0,
+    maxLoad:Math.max(0,...busInfo.map(b=>b.loadPct||0)),overAfter:busInfo.filter(b=>b.over).length,
+    qSwaps:swaps.filter(s=>s.type==='quality').length,lSwaps:swaps.filter(s=>s.type==='load').length};
+}
+
+document.getElementById('runBtn').onclick=()=>{const st=document.getElementById('status');st.textContent='Working…';
+  document.getElementById('runBtn').disabled=true;
+  setTimeout(()=>{try{OPT=optimize();renderResults(OPT);st.textContent='Done.';}catch(e){st.textContent='Error: '+e.message;console.error(e);}
+    document.getElementById('runBtn').disabled=false;},30);};
+
+/* filters + dynamic KPIs */
+let SELGRIDS=null,FID='',FNAME='',sortKey='qSwaps',sortDir=-1;
+function filteredGrids(O){
+  return O.grids.filter(r=>{
+    if(SELGRIDS&&!SELGRIDS.has(r.gridLabel))return false;
+    if(FID&&!r.fs.some(f=>String(f.id)===FID))return false;
+    if(FNAME&&!r.fs.some(f=>String(f.name).toLowerCase()===FNAME.toLowerCase()))return false;
+    return true;});
+}
+function renderResults(O){
+  let html=`<div class="panel"><h2>Results <span class="tag" id="resTag"></span></h2><div class="kpis" id="kpis"></div>
+    <div style="margin-top:15px"><button class="ghost" id="dlBtn">⬇ Export proposal (.xlsx)</button></div></div>`;
+  const ids=[...new Set(FEEDERS.map(f=>String(f.id)))];
+  const names=[...new Set(FEEDERS.map(f=>String(f.name)).filter(Boolean))];
+  html+=`<div class="panel"><h2>Grid-wise proposal <span class="tag">click ▸ for PTR fault % &amp; loading</span></h2>
+    <div class="filterbar">
+      <div class="fgrp"><label>Grids</label><div class="dd"><button class="ddbtn" id="gridDDbtn">All grids ▾</button><div class="ddpanel hide" id="gridDDpanel"></div></div></div>
+      <div class="fgrp"><label>Feeder ID</label><input class="fin" id="fidIn" list="fidList" placeholder="any"></div>
+      <div class="fgrp"><label>Feeder Name</label><input class="fin" id="fnameIn" list="fnameList" placeholder="any"></div>
+      <span class="clearf" id="clearF">clear</span>
+      <datalist id="fidList">${ids.map(i=>`<option value="${i}">`).join('')}</datalist>
+      <datalist id="fnameList">${names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    </div>
+    <div style="overflow-x:auto;max-height:640px"><table id="gtbl"><thead><tr>
+    ${th('gridLabel','Grid')}${th('cleanLabel','Clean bus')}${th('qSwaps','Swaps (Q+L)')}${th('priorityPost','Priority →')}
+    ${th('plat','P · G · S on clean')}${th('faultShare','Clean fault share')}${th('maxLoad','Max load %')}<th></th>
+    </tr></thead><tbody id="gbody"></tbody></table></div></div>`;
+  document.getElementById('results').innerHTML=html;
+  document.getElementById('dlBtn').onclick=()=>exportWorkbook(O);
+  setupFilters(O);refresh(O);
+}
+function setupFilters(O){
+  const labels=[...new Set(O.grids.map(r=>r.gridLabel))].sort();
+  SELGRIDS=null;FID='';FNAME='';
+  const panel=document.getElementById('gridDDpanel'),btn=document.getElementById('gridDDbtn');
+  panel.innerHTML=`<label class="ddrow ddall"><input type="checkbox" id="ddAll" checked> All grids</label>`+
+    labels.map(l=>`<label class="ddrow"><input type="checkbox" class="ddg" value="${l.replace(/"/g,'&quot;')}" checked> ${l}</label>`).join('');
+  btn.onclick=e=>{e.stopPropagation();panel.classList.toggle('hide');};
+  document.addEventListener('click',e=>{if(!panel.contains(e.target)&&e.target!==btn)panel.classList.add('hide');});
+  const boxes=()=>[...panel.querySelectorAll('.ddg')],allBox=document.getElementById('ddAll');
+  function upd(){const chk=boxes().filter(b=>b.checked).map(b=>b.value);
+    SELGRIDS=(chk.length===labels.length)?null:new Set(chk);
+    btn.textContent=(SELGRIDS===null?'All grids':chk.length+' selected')+' ▾';
+    allBox.checked=(chk.length===labels.length);refresh(O);}
+  allBox.onchange=()=>{boxes().forEach(b=>b.checked=allBox.checked);upd();};
+  boxes().forEach(b=>b.onchange=upd);
+  document.getElementById('fidIn').oninput=e=>{FID=e.target.value.trim();refresh(O);};
+  document.getElementById('fnameIn').oninput=e=>{FNAME=e.target.value.trim();refresh(O);};
+  document.getElementById('clearF').onclick=()=>{document.getElementById('fidIn').value='';document.getElementById('fnameIn').value='';
+    FID='';FNAME='';boxes().forEach(b=>b.checked=true);upd();};
+}
+function refresh(O){
+  const F=filteredGrids(O);
+  // dynamic KPIs
+  const swaps=F.reduce((a,r)=>a+r.swaps.length,0);
+  const priUp=F.reduce((a,r)=>a+(r.priorityPost-r.priorityPre),0);
+  const platUp=F.reduce((a,r)=>a+(r.platPost-r.platPre),0);
+  const over=F.reduce((a,r)=>a+r.overAfter,0);
+  const avgLoad=F.length?Math.round(F.reduce((a,r)=>a+r.maxLoad,0)/F.length):0;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="v">${F.length}</div><div class="l">Grids shown</div></div>
+    <div class="kpi"><div class="v">${swaps}</div><div class="l">Swaps (quality+load)</div></div>
+    <div class="kpi"><div class="v mag">+${priUp}</div><div class="l">Priority → clean bus</div></div>
+    <div class="kpi"><div class="v green">+${platUp}</div><div class="l">Platinum → clean bus</div></div>
+    <div class="kpi"><div class="v ${over?'red':'green'}">${over}</div><div class="l">PTRs &gt; 93% after</div></div>`;
+  document.getElementById('resTag').textContent=`${OPT.processed} optimized · ${OPT.single} single-bus · avg max-load ${avgLoad}%`;
+  drawRows(O,F);
+}
+function th(k,l){return `<th data-k="${k}">${l}</th>`;}
+function delta(b,a,goodUp=true){const d=+(a-b).toFixed(1);if(d===0)return `<span class="delta flat">±0</span>`;
+  return `<span class="delta ${(goodUp?d>0:d<0)?'up':'dn'}">${d>0?'+':''}${d}</span>`;}
+function cust(p,g,s){return `<span class="cust"><b class="cP">P${p}</b> <b class="cG">G${g}</b> <b class="cS">S${s}</b></span>`;}
+function drawRows(O,F){
+  let rows=[...F];
+  rows.sort((a,b)=>{let va,vb;
+    if(sortKey==='gridLabel'||sortKey==='cleanLabel'){va=a[sortKey];vb=b[sortKey];return sortDir*(va<vb?-1:va>vb?1:0);}
+    if(sortKey==='qSwaps'){va=a.swaps.length;vb=b.swaps.length;}
+    else if(sortKey==='maxLoad'){va=a.maxLoad;vb=b.maxLoad;}
+    else if(sortKey==='faultShare'){va=a.faultSharePost;vb=b.faultSharePost;}
+    else if(sortKey==='plat'){va=a.platPost;vb=b.platPost;}
+    else{va=a[sortKey];vb=b[sortKey];}
+    return sortDir*(va-vb);});
+  const body=document.getElementById('gbody');body.innerHTML='';
+  rows.forEach((r,i)=>{const cls=r.maxLoad>93?'r':r.maxLoad>=88?'g':'y';const single=r.single?'<span class="muted small"> (1 bus)</span>':'';
+    body.insertAdjacentHTML('beforeend',
+      `<tr class="gridrow" data-i="${i}">
+        <td class="name">${r.gridLabel}${single}</td><td>${r.cleanLabel}</td>
+        <td>${r.qSwaps}<span class="muted">+${r.lSwaps}</span></td>
+        <td><span class="pill m">${r.priorityPre}→${r.priorityPost}</span> ${delta(r.priorityPre,r.priorityPost,true)}</td>
+        <td>${cust(r.platPost,r.goldPost,r.silverPost)} <span class="muted small">${r.platPre+r.goldPre+r.silverPre}→${r.platPost+r.goldPost+r.silverPost}</span></td>
+        <td>${r.faultSharePre}% → <b>${r.faultSharePost}%</b> ${delta(r.faultSharePre,r.faultSharePost,false)}</td>
+        <td><span class="pill ${cls}">${r.maxLoad}%</span></td><td class="expand">▸</td>
+      </tr><tr class="detail hide" id="d${i}"><td colspan="8">${detailHTML(r)}</td></tr>`);});
+  document.querySelectorAll('#gtbl th[data-k]').forEach(t=>t.onclick=()=>{
+    const k=t.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='gridLabel'||k==='cleanLabel')?1:-1;}drawRows(O,F);});
+  document.querySelectorAll('.gridrow').forEach(el=>el.onclick=()=>{const d=document.getElementById('d'+el.dataset.i);if(d)d.classList.toggle('hide');});
+}
+function stack(info,which){let h='<div class="stack">';
+  info.forEach(b=>{const v=which==='pre'?b.contribPre:b.contribPost;if(v<=0)return;
+    h+=`<div class="seg ${b.isClean?'clean':''}" style="width:${v}%" title="${b.label}: ${v}%">${v>=8?b.label.split(':').pop()+' '+v+'%':''}</div>`;});
+  return h+'</div>';}
+function detailHTML(r){
+  let h='<div class="detail-inner">';
+  h+='<h4>PTR fault contribution (12-mo) — before</h4>'+stack(r.busInfo,'pre');
+  h+='<h4>after proposal</h4>'+stack(r.busInfo,'post');
+  h+='<h4>PTR customers, loading &amp; utilisation</h4><table class="swaptbl"><thead><tr><th>PTR bus</th><th>Platinum</th><th>Gold</th><th>Silver</th><th>Fault % pre→post</th><th>Load (A)</th><th>Ampacity (A)</th><th>93% cap (A)</th><th>Loading % (≤93%)</th></tr></thead><tbody>';
+  r.busInfo.forEach(b=>{const u=b.loadPct==null?'—':b.loadPct+'%',w=b.loadPct==null?0:Math.min(100,b.loadPct);
+    const cls=b.loadPct>93?'over':b.loadPct>=88?'near':b.loadPct>=70?'':'';const star=b.isClean?' <span class="to">◆ clean</span>':'';
+    const est=b.est?' <span class="muted" title="estimated">~</span>':'';
+    h+=`<tr><td>${b.label}${star}</td><td class="cP">${b.plat}</td><td class="cG">${b.gold}</td><td class="cS">${b.silver}</td>
+        <td>${b.contribPre}% → ${b.contribPost}%</td><td>${b.load}</td><td>${b.ampacity||'—'}${est}</td><td>${b.cap93||'—'}</td>
+        <td><span class="barwrap"><span class="bar ${cls}" style="width:${w}%"></span></span>${u}</td></tr>`;});
+  h+='</tbody></table>';
+  if(r.swaps.length){
+    h+=`<h4>Swaps — ${r.qSwaps} quality <span class="muted">+ ${r.lSwaps} load-balance</span></h4>`;
+    h+='<table class="swaptbl"><thead><tr><th>#</th><th>Type</th><th>Out</th><th></th><th>In</th><th>ΔLoad</th></tr></thead><tbody>';
+    r.swaps.forEach((s,i)=>{const op=s.outPri?'<span class="prio">★</span> ':'',ip=s.inPri?'<span class="prio">★</span> ':'';
+      const ol=s.outLoss?' ·'+s.outLoss:'',il=s.inLoss?' ·'+s.inLoss:'';
+      const tlab=s.type==='load'?'<span class="ld">load</span>':'<span class="prio">quality</span>';
+      const ctx=s.type==='load'?s.pair:('from '+s.fromBus);
+      h+=`<tr><td>${i+1}</td><td>${tlab}</td>
+          <td class="from">${op}${s.outName} <span class="muted">#${s.outId} · ${s.outAmp.toFixed(0)}A${ol}</span></td>
+          <td class="arrow">⇄</td><td class="to">${ip}${s.inName} <span class="muted">#${s.inId} · ${s.inAmp.toFixed(0)}A${il} · ${ctx}</span></td>
+          <td>${(s.inAmp-s.outAmp>=0?'+':'')}${(s.inAmp-s.outAmp).toFixed(0)}A</td></tr>`;});
+    h+='</tbody></table><div class="muted small" style="margin-top:4px"><span class="prio">★</span> priority feeder · <span class="prio">quality</span> = clean-bus improvement · <span class="ld">load</span> = pack toward 93%</div>';
+  } else h+='<p class="muted small">No improving swap'+(r.single?' (single bus).':'.')+'</p>';
+  return h+'</div>';
+}
+function exportWorkbook(O){
+  const F=filteredGrids(O);
+  const wb=XLSX.utils.book_new();
+  const gs=[['Grid','Clean Bus','Quality swaps','Load swaps','Priority pre','Priority post','Plat pre','Plat post','Gold pre','Gold post','Silver pre','Silver post','Clean fault% pre','Clean fault% post','Max load %','PTRs >93%','Grid 12-mo faults']];
+  F.forEach(r=>gs.push([r.gridLabel,r.cleanLabel,r.qSwaps,r.lSwaps,r.priorityPre,r.priorityPost,r.platPre,r.platPost,r.goldPre,r.goldPost,r.silverPre,r.silverPost,r.faultSharePre,r.faultSharePost,r.maxLoad,r.overAfter,Math.round(r.gridFault)]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(gs),'Grid_Summary');
+  const pc=[['Grid','PTR bus','Clean?','Platinum','Gold','Silver','Fault% pre','Fault% post','Load (A)','Ampacity (A)','93% cap (A)','Loading %','Status']];
+  F.forEach(r=>r.busInfo.forEach(b=>pc.push([r.gridLabel,b.label,b.isClean?'CLEAN':'',b.plat,b.gold,b.silver,b.contribPre,b.contribPost,b.load,b.ampacity||'',b.cap93||'',b.loadPct==null?'':b.loadPct,b.over?'OVER 93%':'OK'])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(pc),'PTR_Customers_Loading');
+  const sw=[['Grid','Clean Bus','#','Type','Out Feeder','Out ID','Out Priority','Out Amp','In Feeder','In ID','In Priority','In Amp','Context']];
+  F.forEach(r=>r.swaps.forEach((s,i)=>sw.push([r.gridLabel,r.cleanLabel,i+1,s.type,s.outName,s.outId,s.outPri?'YES':'',Math.round(s.outAmp),s.inName,s.inId,s.inPri?'YES':'',Math.round(s.inAmp),s.type==='load'?s.pair:('from '+s.fromBus)])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sw),'Swaps');
+  const na=[['Feeder ID','Feeder name','Grid','Priority','Loss','Old bus','New bus','Changed','On clean']];
+  F.forEach(r=>r.fs.forEach(f=>na.push([f.id,f.name,r.gridLabel,f.isPriority?'YES':'',f.lossCat,CANON[f.bus0.split('#')[0]]+':'+f.bus0.split('#')[1],r.busInfo.find(b=>b.bus===f.bus).label,f.bus0!==f.bus?'YES':'',f.bus===r.cleanBus?'CLEAN':''])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(na),'New_Assignment');
+  XLSX.writeFile(wb,'KE_Priority_Clean_Bus_Proposal.xlsx');
+}
+</script>
+</body>
+</html>
