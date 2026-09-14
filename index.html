@@ -214,7 +214,8 @@ function parseWorkbook(buf){
     const gv=capByGrid[f.gkey];
     if(gv&&gv.length){const cnt={};gv.forEach(v=>cnt[v]=(cnt[v]||0)+1);const prov=+Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];
       BUSCAP[f.bus0]={provided:prov,limit:prov*LOAD_LIMIT,_gridfb:true};return;}
-    const m=String(f.row[COLMAP.rating]||'').match(/(\d+(?:\.\d+)?)/g);let mva=m?Math.max(...m.map(Number).filter(x=>x<200)):null;
+    const m=String(f.row[COLMAP.rating]||'').match(/(\d+(?:\.\d+)?)/g);
+    const cands=m?m.map(Number).filter(x=>x<200):[];const mva=cands.length?Math.max(...cands):null;
     const rated=mva?mva*1e6/(Math.sqrt(3)*11000):null;
     BUSCAP[f.bus0]={provided:rated?Math.round(rated):null,limit:rated?rated*LOAD_LIMIT:null,_fb:true};});
   renderDetected(cs);document.getElementById('runBtn').disabled=false;
